@@ -78,7 +78,7 @@ def main(argv=None):
     fps = 0.0
 
     while renderer.running:
-        for e in gui.get_event(ti.GUI.PRESS):
+        for e in gui.get_events(ti.GUI.PRESS):
             if e.key == ti.GUI.ESCAPE:
                 gui.running = False
             elif e.key == ti.GUI.SPACE:
