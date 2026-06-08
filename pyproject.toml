@@ -1,0 +1,26 @@
+[project]
+name = "coupledsim"
+version = "0.1.0"
+description = "基于多物理耦合的软体水流解谜系统 — Fluid (FLIP/PIC/APIC) + Soft Body + Rigid coupling, built on Taichi"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "taichi>=1.7.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/coupledsim"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

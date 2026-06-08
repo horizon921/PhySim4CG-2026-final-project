@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# uv / venv
+.venv/
+.uv/
+
+# Taichi
+.cache/
+*.ll
+
+# OS
+.DS_Store
+
+# Outputs (rendered frames, recordings, captures)
+outputs/
+*.mp4
+*.gif
+captures/
+
+# Editor
+.vscode/
+.idea/
