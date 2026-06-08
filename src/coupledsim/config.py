@@ -45,6 +45,7 @@ class FluidConfig:
     rho: float = 1.0               # 流体密度
     flip_ratio: float = 0.97       # FLIP/PIC 混合比例（仅 FLIP 模式用）
     transfer: TransferMode = TransferMode.APIC
+    viscosity: float = 0.0         # 运动粘度 nu（网格速度扩散），0 = 无粘
     vel_damping: float = 0.0       # 额外整体速度阻尼（1/s），耦合稳定性用
 
     # --- 求解 ---

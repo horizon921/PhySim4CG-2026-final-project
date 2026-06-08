@@ -352,6 +352,63 @@ class FlipSolver:
                 self.v[i, j] = self.v_solid[i, j]
 
     # ===================================================================== #
+    # 5b. 粘性扩散（显式 Jacobi，按稳定性自动细分子步）
+    # ===================================================================== #
+    @ti.kernel
+    def _diffuse_u(self, coef: ti.f32):
+        for I in ti.grouped(self.u):
+            self.u_tmp[I] = self.u[I]
+        for i, j in self.u:
+            active = 0
+            if 0 < i < self.nx:
+                if not (self.is_solid(i - 1, j) or self.is_solid(i, j)):
+                    if self.is_fluid(i - 1, j) or self.is_fluid(i, j):
+                        active = 1
+            if active == 1:
+                il = max(i - 1, 0)
+                ir = min(i + 1, self.nx)
+                jd = max(j - 1, 0)
+                ju = min(j + 1, self.ny - 1)
+                lap = (self.u[il, j] + self.u[ir, j] + self.u[i, jd]
+                       + self.u[i, ju] - 4.0 * self.u[i, j])
+                self.u_tmp[i, j] = self.u[i, j] + coef * lap
+        for I in ti.grouped(self.u):
+            self.u[I] = self.u_tmp[I]
+
+    @ti.kernel
+    def _diffuse_v(self, coef: ti.f32):
+        for I in ti.grouped(self.v):
+            self.v_tmp[I] = self.v[I]
+        for i, j in self.v:
+            active = 0
+            if 0 < j < self.ny:
+                if not (self.is_solid(i, j - 1) or self.is_solid(i, j)):
+                    if self.is_fluid(i, j - 1) or self.is_fluid(i, j):
+                        active = 1
+            if active == 1:
+                il = max(i - 1, 0)
+                ir = min(i + 1, self.nx - 1)
+                jd = max(j - 1, 0)
+                ju = min(j + 1, self.ny)
+                lap = (self.v[il, j] + self.v[ir, j] + self.v[i, jd]
+                       + self.v[i, ju] - 4.0 * self.v[i, j])
+                self.v_tmp[i, j] = self.v[i, j] + coef * lap
+        for I in ti.grouped(self.v):
+            self.v[I] = self.v_tmp[I]
+
+    def apply_viscosity(self, sdt: float):
+        nu = self.cfg.viscosity
+        if nu <= 0.0:
+            return
+        # 显式扩散稳定性：coef = nu*tau/dx^2 <= 0.25，按需细分
+        max_coef = 0.24
+        m = max(1, int(np.ceil(nu * sdt / (max_coef * self.dx * self.dx))))
+        coef = nu * sdt / (m * self.dx * self.dx)
+        for _ in range(m):
+            self._diffuse_u(coef)
+            self._diffuse_v(coef)
+
+    # ===================================================================== #
     # 6. 压力投影（红黑 Gauss-Seidel）
     # ===================================================================== #
     @ti.kernel
@@ -838,6 +895,7 @@ class FlipSolver:
         self.classify_cells()
         self.add_gravity(sdt, cfg.gravity_x, cfg.gravity_y)
         self.apply_solid_boundaries()
+        self.apply_viscosity(sdt)
         self.compute_divergence()
         self.solve_pressure(sdt)
         self.apply_pressure(sdt)

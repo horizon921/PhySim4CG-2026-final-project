@@ -128,6 +128,29 @@ def test_obstacle_blocks_fluid():
     assert n_inside <= 0.01 * len(pos), "过多粒子穿入障碍内部"
 
 
+def test_viscosity_dissipates_energy():
+    """粘度越大，坍塌过程中的动能应越低，且不应失稳。"""
+    def run(nu):
+        cfg = FluidConfig(res_x=40, res_y=40, domain_x=1.0, transfer=TransferMode.APIC,
+                          adaptive_substeps=False, substeps=2, viscosity=nu,
+                          max_particles=80_000)
+        solver = FlipSolver(cfg)
+        solver.set_solid_phi(static_solid_phi(40, 40, cfg.dx, shapes=[], with_walls=True))
+        solver.add_particle_block(0.05, 0.1, 0.45, 0.9)
+        ke_mid = 0.0
+        for f in range(70):
+            solver.step()
+            v = solver.particle_velocities_np()
+            assert np.isfinite(v).all(), f"nu={nu} frame {f} NaN"
+            if f == 35:
+                ke_mid = 0.5 * float((v ** 2).sum())
+        return ke_mid
+
+    ke0, ke1, ke2 = run(0.0), run(0.03), run(0.12)
+    print(f"[viscosity] KE@35  nu0={ke0:.1f}  nu.03={ke1:.1f}  nu.12={ke2:.1f}")
+    assert ke1 < ke0 and ke2 < ke1, "粘度未单调降低动能"
+
+
 def test_renderer_headless_draws():
     """实际交互渲染器（ti.GUI, show_gui=False）的绘制路径不应报错并能出图。"""
     from coupledsim.scene import build_scene
@@ -156,6 +179,8 @@ if __name__ == "__main__":
     test_stability_pic()
     print("=== obstacle ===")
     test_obstacle_blocks_fluid()
+    print("=== viscosity ===")
+    test_viscosity_dissipates_energy()
     print("=== renderer ===")
     test_renderer_headless_draws()
     print("\nALL HEADLESS CHECKS PASSED ✅")

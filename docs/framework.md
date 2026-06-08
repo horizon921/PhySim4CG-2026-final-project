@@ -51,6 +51,9 @@ src/coupledsim/
 3. **单元分类**（`classify_cells`）：`solid_phi<0` → SOLID；含粒子 → FLUID；其余 AIR。
 4. **体力**（`add_gravity`）：重力加到流体面速度。
 5. **固体边界**（`apply_solid_boundaries`）：固体面法向速度置为固体速度（静态即 0）。
+5b. **粘性扩散**（`apply_viscosity`，可选）：对网格速度做显式 Jacobi 扩散
+   `u += ν·τ·∇²u`，按稳定性 `ν·τ/dx² ≤ 0.25` 自动细分内部子步；
+   固体面提供无滑移边界。`viscosity=0` 时跳过。
 6. **压力投影**（`solve_pressure`）：解压力 Poisson 使速度近似无散。
    - 默认 **Jacobi 预条件共轭梯度 (PCG)**，收敛快、残差可降到 ~1e-5。
    - 备选红黑 Gauss–Seidel（`use_cg=False`）。

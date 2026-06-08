@@ -7,7 +7,8 @@ Lab4 / Final Project。目标是实现一个 **流体 + 软体 + 刚体** 的二
 
 - ✅ **统一工程框架**：配置、场景、渲染、耦合接口分层，各物理模块可独立测试。
 - ✅ **流体模块（核心）**：二维 **FLIP / PIC / APIC**，交错 MAC 网格，
-  Jacobi 预条件共轭梯度（PCG）压力投影，速度外插，喷口 / 吸入口 / 障碍边界。
+  Jacobi 预条件共轭梯度（PCG）压力投影，速度外插，**粘性扩散**，
+  喷口 / 吸入口 / 障碍边界。
 - ✅ **固体边界接口**：静态解析障碍（盒 / 圆 / 水箱壁）栅格化为有符号距离场，
   作为后续软体 / 刚体接入流体的统一通道。
 - 🚧 软体（FEM/XPBD）、刚体机关、双向耦合：占位，后续阶段实现。
@@ -34,6 +35,16 @@ uv run python -m coupledsim.app --scene obstacle
 uv run python -m coupledsim.app --transfer flip --res 128
 ```
 
+对比出图（报告 / 展示用，无需窗口）：
+
+```bash
+# PIC / FLIP / APIC 数值耗散对比
+uv run python -m coupledsim.tools.compare_transfer --res 96 --frames 70
+# 任意参数对比（粘性 / FLIP ratio / 压力精度 ...）
+uv run python -m coupledsim.tools.compare_param --param viscosity --values 0,0.03,0.12
+uv run python -m coupledsim.tools.compare_param --param flip_ratio --values 0.0,0.95,0.99 --transfer flip
+```
+
 headless 正确性 / 稳定性检查（无需窗口，CI 友好）：
 
 ```bash
@@ -41,6 +52,8 @@ uv run python tests/test_fluid_headless.py
 # 或
 uv run pytest
 ```
+
+测试覆盖：压力投影散度下降、PIC/FLIP/APIC 稳定性、障碍阻挡、粘性耗散、渲染路径。
 
 ## 代码结构
 
