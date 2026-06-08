@@ -727,6 +727,18 @@ class FlipSolver:
                 self.n_particles[None] = self.max_particles
 
     @ti.kernel
+    def apply_drag_force(self, cx: ti.f32, cy: ti.f32, vx: ti.f32, vy: ti.f32,
+                         radius: ti.f32, strength: ti.f32):
+        """对光标半径内的粒子施加朝鼠标运动方向的拖拽速度（交互搅动）。"""
+        r2 = radius * radius
+        for p in range(self.n_particles[None]):
+            d = self.px[p] - ti.Vector([cx, cy])
+            dd = d.dot(d)
+            if dd < r2:
+                w = 1.0 - ti.sqrt(dd) / radius
+                self.pv[p] += strength * w * ti.Vector([vx, vy])
+
+    @ti.kernel
     def _compact(self, sink_x0: ti.f32, sink_y0: ti.f32, sink_x1: ti.f32, sink_y1: ti.f32,
                  use_sink: ti.i32):
         self.n_tmp[None] = 0
