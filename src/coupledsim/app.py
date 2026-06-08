@@ -30,7 +30,7 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(description="coupledsim 二维流体交互演示")
     p.add_argument("--scene", default="dambreak", choices=list(BUILDERS))
     p.add_argument("--transfer", default="apic", choices=list(TRANSFER_MAP))
-    p.add_argument("--res", type=int, default=128)
+    p.add_argument("--res", type=int, default=96)
     p.add_argument("--arch", default="cpu", choices=list(ARCH_MAP))
     p.add_argument("--window", type=int, default=720)
     p.add_argument("--headless", type=int, default=0,

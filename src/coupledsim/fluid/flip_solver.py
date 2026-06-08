@@ -487,6 +487,43 @@ class FlipSolver:
             if self.cell_type[i, j] == FLUID:
                 self.cg_d[i, j] = self.cg_z[i, j] + beta * self.cg_d[i, j]
 
+    # 融合内核：减少 CPU 上的内核启动 / 同步次数（压力求解是主要瓶颈）
+    @ti.kernel
+    def _cg_apply_A_dot(self, scale: ti.f32) -> ti.f32:
+        """一遍完成 q = A·d 与 d·q，减少一次同步。"""
+        s = 0.0
+        for i, j in self.cell_type:
+            q = 0.0
+            if self.cell_type[i, j] == FLUID:
+                nonsolid = self._nonsolid_count(i, j)
+                ssum = 0.0
+                if self.is_fluid(i - 1, j):
+                    ssum += self.cg_d[i - 1, j]
+                if self.is_fluid(i + 1, j):
+                    ssum += self.cg_d[i + 1, j]
+                if self.is_fluid(i, j - 1):
+                    ssum += self.cg_d[i, j - 1]
+                if self.is_fluid(i, j + 1):
+                    ssum += self.cg_d[i, j + 1]
+                q = scale * (nonsolid * self.cg_d[i, j] - ssum)
+                s += self.cg_d[i, j] * q
+            self.cg_q[i, j] = q
+        return s
+
+    @ti.kernel
+    def _cg_update_precond_dot(self, alpha: ti.f32) -> ti.f32:
+        """一遍完成 x+=αd, r-=αq, z=M⁻¹r, 并返回新的 r·z。"""
+        s = 0.0
+        for i, j in self.cell_type:
+            if self.cell_type[i, j] == FLUID:
+                self.pressure[i, j] += alpha * self.cg_d[i, j]
+                r = self.cg_r[i, j] - alpha * self.cg_q[i, j]
+                self.cg_r[i, j] = r
+                z = r / self.cg_diag[i, j]
+                self.cg_z[i, j] = z
+                s += r * z
+        return s
+
     def solve_pressure_cg(self, sdt: float):
         self.pressure.fill(0.0)
         scale = sdt / (self.rho * self.dx * self.dx)
@@ -496,14 +533,12 @@ class FlipSolver:
         delta0 = delta_new
         tol2 = self.cfg.cg_tol ** 2
         for _ in range(self.cfg.cg_max_iters):
-            self._apply_A(scale, self.cg_d, self.cg_q)
-            dq = self._dot(self.cg_d, self.cg_q)
+            dq = self._cg_apply_A_dot(scale)
             if abs(dq) < 1e-30:
                 break
             alpha = delta_new / dq
-            self._cg_update_xr(alpha)
             delta_old = delta_new
-            delta_new = self._cg_precond_dot()
+            delta_new = self._cg_update_precond_dot(alpha)
             if delta_new <= tol2 * delta0:
                 break
             beta = delta_new / delta_old

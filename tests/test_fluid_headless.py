@@ -128,6 +128,23 @@ def test_obstacle_blocks_fluid():
     assert n_inside <= 0.01 * len(pos), "过多粒子穿入障碍内部"
 
 
+def test_renderer_headless_draws():
+    """实际交互渲染器（ti.GUI, show_gui=False）的绘制路径不应报错并能出图。"""
+    from coupledsim.scene import build_scene
+    from coupledsim.render import Renderer2D
+    scene = build_scene("obstacle", res=48, transfer=TransferMode.APIC)
+    r = Renderer2D(scene, window_size=400, show_gui=False)
+    for _ in range(20):
+        scene.step()
+    r.draw(info_lines=[f"N={scene.n_particles}", "headless render test"])
+    # 离屏渲染器同样应可用
+    from coupledsim.render.offscreen import render_frame
+    img = render_frame(scene, width=256)
+    assert img.shape[0] == 256 and img.ndim == 3
+    assert np.isfinite(img).all()
+    print(f"[render] Renderer2D + offscreen 均正常，img={img.shape}")
+
+
 if __name__ == "__main__":
     print("=== projection ===")
     test_projection_reduces_divergence()
@@ -139,4 +156,6 @@ if __name__ == "__main__":
     test_stability_pic()
     print("=== obstacle ===")
     test_obstacle_blocks_fluid()
+    print("=== renderer ===")
+    test_renderer_headless_draws()
     print("\nALL HEADLESS CHECKS PASSED ✅")

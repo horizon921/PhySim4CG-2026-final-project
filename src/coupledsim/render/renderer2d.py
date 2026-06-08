@@ -22,7 +22,8 @@ def _pack_rgb(rgb: np.ndarray) -> np.ndarray:
 
 
 class Renderer2D:
-    def __init__(self, scene, window_size: int = 720, title: str | None = None):
+    def __init__(self, scene, window_size: int = 720, title: str | None = None,
+                 show_gui: bool = True):
         self.scene = scene
         self.cfg = scene.cfg
         self.lx = scene.lx
@@ -31,7 +32,8 @@ class Renderer2D:
         self.W = window_size
         self.H = int(round(window_size * aspect))
         self.gui = ti.GUI(title or f"coupledsim · {scene.name}",
-                          res=(self.W, self.H), background_color=0x081420)
+                          res=(self.W, self.H), background_color=0x081420,
+                          show_gui=show_gui)
         self._prep_obstacles()
         # 粒子像素半径：约占一个网格单元的一半
         self.particle_radius_px = max(1.3, 0.42 * self.W / self.cfg.res_x)
@@ -69,7 +71,7 @@ class Renderer2D:
         b = 0.60 + 0.40 * (1.0 - (1.0 - t) ** 2)
         return _pack_rgb(np.stack([r, g, b], axis=1))
 
-    def draw(self, info_lines=None):
+    def draw(self, info_lines=None, save_path=None):
         gui = self.gui
         obstacle_color = 0x46505E
 
@@ -99,7 +101,7 @@ class Renderer2D:
             for line in info_lines:
                 gui.text(line, pos=(0.012, y), font_size=18, color=0xE8F0F8)
                 y -= 0.035
-        return gui.show()
+        return gui.show(save_path)
 
     @property
     def running(self) -> bool:

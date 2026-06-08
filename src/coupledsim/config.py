@@ -50,8 +50,8 @@ class FluidConfig:
     # --- 求解 ---
     use_cg: bool = True            # True: Jacobi-PCG（推荐，收敛快）; False: 红黑 Gauss-Seidel
     pressure_iters: int = 80       # Gauss-Seidel 迭代数（use_cg=False 时）
-    cg_max_iters: int = 200        # PCG 最大迭代数
-    cg_tol: float = 1e-5           # PCG 相对残差阈值
+    cg_max_iters: int = 120        # PCG 最大迭代数
+    cg_tol: float = 1e-4           # PCG 相对残差阈值（视觉足够；做精度对比可调到 1e-6）
     extrapolate_iters: int = 4     # 速度外插迭代数
 
     # --- 粒子 ---
