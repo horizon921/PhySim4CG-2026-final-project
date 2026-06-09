@@ -1,7 +1,7 @@
 from .boundary import (
     Shape,
     Box,
-    Circle,
+    Sphere,
     DomainWalls,
     union_sdf,
     static_solid_phi,
@@ -10,7 +10,7 @@ from .boundary import (
 __all__ = [
     "Shape",
     "Box",
-    "Circle",
+    "Sphere",
     "DomainWalls",
     "union_sdf",
     "static_solid_phi",

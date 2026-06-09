@@ -35,7 +35,7 @@ def main(argv=None):
 
     from ..config import TransferMode
     from ..scene import build_scene
-    from ..render import Renderer2D
+    from ..render import Viewer3D
     from ..fluid.flip_solver import FLUID
 
     transfer = {"pic": TransferMode.PIC, "flip": TransferMode.FLIP,
@@ -49,7 +49,7 @@ def main(argv=None):
         if not hasattr(scene.cfg, args.param):
             raise ValueError(f"FluidConfig 无字段 '{args.param}'")
         setattr(scene.cfg, args.param, val)
-        renderer = Renderer2D(scene, window_size=args.window, show_gui=False,
+        renderer = Viewer3D(scene, window_size=args.window, show_gui=False,
                               title=f"{args.param}={val}")
         for _ in range(args.frames):
             scene.step()

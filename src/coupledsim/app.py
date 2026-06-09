@@ -1,16 +1,15 @@
-"""交互式入口。
+"""交互式入口（三维）。
 
 用法：
-    python -m coupledsim.app                      # dam break（默认）
+    python -m coupledsim.app                      # 3D dam break（默认）
     python -m coupledsim.app --scene jet
-    python -m coupledsim.app --transfer flip --res 128 --arch gpu
+    python -m coupledsim.app --transfer flip --res 48
     python -m coupledsim.app --headless 400 --save outputs/dambreak  # 离屏出图
 
 交互：
-    鼠标左键拖动 = 搅动水（施加拖拽力）
-    鼠标右键    = 在光标处加水
-    空格 = 暂停/继续    R = 重置    P/F/A = 切换 PIC/FLIP/APIC
-    G = 开/关重力       H = 帮助    Esc = 退出
+    鼠标左键拖动 = 旋转相机
+    空格 = 暂停/继续   R = 重置   P/F/A = 切换 PIC/FLIP/APIC
+    G = 开/关重力      X = 横向晃动一下   H = 帮助   Esc = 退出
 """
 
 import argparse
@@ -27,10 +26,11 @@ TRANSFER_MAP = {"pic": TransferMode.PIC, "flip": TransferMode.FLIP, "apic": Tran
 
 
 def parse_args(argv=None):
-    p = argparse.ArgumentParser(description="coupledsim 二维流体交互演示")
+    p = argparse.ArgumentParser(description="coupledsim 三维流体交互演示")
     p.add_argument("--scene", default="dambreak", choices=list(BUILDERS))
     p.add_argument("--transfer", default="apic", choices=list(TRANSFER_MAP))
-    p.add_argument("--res", type=int, default=96)
+    p.add_argument("--res", type=int, default=40,
+                   help="网格分辨率（每轴）。CPU 上 32≈流畅, 48≈较慢但更精细")
     p.add_argument("--arch", default="cpu", choices=list(ARCH_MAP))
     p.add_argument("--window", type=int, default=720)
     p.add_argument("--headless", type=int, default=0,
@@ -41,13 +41,14 @@ def parse_args(argv=None):
 
 
 def run_headless(scene, steps, save_prefix, save_every):
-    from .render.offscreen import render_frame, save_png
+    from .render import render_frame, save_png
     t0 = time.time()
     saved = 0
+    azim = 35.0
     for f in range(steps):
         scene.step()
         if save_prefix and (f % save_every == 0 or f == steps - 1):
-            img = render_frame(scene, width=640)
+            img = render_frame(scene, width=640, azim=azim + 0.25 * f, elev=22.0)
             save_png(img, f"{save_prefix}_{f:04d}.png")
             saved += 1
     dt = time.time() - t0
@@ -65,9 +66,9 @@ def main(argv=None):
         run_headless(scene, args.headless, args.save, args.save_every)
         return
 
-    from .render import Renderer2D
-    renderer = Renderer2D(scene, window_size=args.window)
-    gui = renderer.gui
+    from .render import Viewer3D
+    viewer = Viewer3D(scene, window_size=args.window)
+    gui = viewer.gui
 
     paused = False
     show_help = True
@@ -77,7 +78,7 @@ def main(argv=None):
     fps_t = time.time()
     fps = 0.0
 
-    while renderer.running:
+    while viewer.running:
         for e in gui.get_events(ti.GUI.PRESS):
             if e.key == ti.GUI.ESCAPE:
                 gui.running = False
@@ -94,21 +95,16 @@ def main(argv=None):
             elif e.key == "g":
                 gravity_on = not gravity_on
                 scene.cfg.gravity_y = -9.8 if gravity_on else 0.0
+            elif e.key == "x":
+                cx, cy, cz = scene.lx * 0.5, scene.ly * 0.5, scene.lz * 0.5
+                scene.solver.apply_drag_force(cx, cy, cz, 3.0, 0.0, 0.0, scene.lx, 1.0)
             elif e.key == "h":
                 show_help = not show_help
 
-        # 鼠标交互
+        # 鼠标左键拖动旋转相机
         cur = gui.get_cursor_pos()
-        wx, wy = cur[0] * scene.lx, cur[1] * scene.ly
         if gui.is_pressed(ti.GUI.LMB) and last_cur is not None:
-            dx = (cur[0] - last_cur[0]) * scene.lx
-            dy = (cur[1] - last_cur[1]) * scene.ly
-            inv_dt = 1.0 / scene.cfg.dt
-            radius = 0.09 * scene.lx
-            scene.solver.apply_drag_force(wx, wy, dx * inv_dt, dy * inv_dt, radius, 0.4)
-        if gui.is_pressed(ti.GUI.RMB):
-            r = 0.035 * scene.lx
-            scene.solver.emit_block(wx - r, wy - r, wx + r, wy + r, 0.0, 0.0, 18)
+            viewer.rotate((cur[0] - last_cur[0]) * 220.0, -(cur[1] - last_cur[1]) * 160.0)
         last_cur = cur
 
         if not paused:
@@ -121,11 +117,11 @@ def main(argv=None):
             fps = 0.9 * fps + 0.1 * (1.0 / dtf)
 
         info = [f"{scene.name} | {scene.cfg.transfer.name} | N={scene.n_particles} "
-                f"| sub={nsub} | {fps:4.0f} fps" + ("  [PAUSED]" if paused else "")]
+                f"| sub={nsub} | {fps:4.1f} fps" + ("  [PAUSED]" if paused else "")]
         if show_help:
             info.append(scene.hint)
-            info.append("[Space]暂停 [R]重置 [P/F/A]PIC/FLIP/APIC [G]重力 [H]帮助 [Esc]退出")
-        renderer.draw(info)
+            info.append("[Space]暂停 [R]重置 [P/F/A]模式 [G]重力 [X]晃动 [拖动]旋转 [Esc]退出")
+        viewer.draw(info)
 
 
 if __name__ == "__main__":

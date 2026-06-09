@@ -33,15 +33,15 @@ def main(argv=None):
     # 延迟导入：必须在 ti.init 之后（构建场景会分配 taichi 字段）
     from ..config import TransferMode
     from ..scene import build_scene
-    from ..render import Renderer2D
+    from ..render import Viewer3D
     from ..fluid.flip_solver import FLUID
 
     modes = [TransferMode.PIC, TransferMode.FLIP, TransferMode.APIC]
     panels = []
     for mode in modes:
         scene = build_scene(args.scene, res=args.res, transfer=mode)
-        renderer = Renderer2D(scene, window_size=args.window, show_gui=False,
-                              title=f"compare-{mode.name}")
+        renderer = Viewer3D(scene, window_size=args.window, show_gui=False,
+                            title=f"compare-{mode.name}")
         for _ in range(args.frames):
             scene.step()
         # 定量指标
