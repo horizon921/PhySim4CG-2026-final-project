@@ -11,7 +11,11 @@ Lab4 / Final Project。目标是实现一个 **流体 + 软体 + 刚体** 的 **
   喷口 / 吸入口 / 障碍边界。
 - ✅ **固体边界接口**：静态解析障碍（盒 / 球 / 水箱壁）栅格化为有符号距离场，
   作为后续软体 / 刚体接入流体的统一通道。
-- 🚧 软体（FEM/XPBD）、刚体机关、双向耦合：占位，后续阶段实现。
+- ✅ **软体模块（XPBD）**：三维距离约束果冻体，支持重力、阻尼、边界碰撞、
+  流体速度拖拽、栅格化为运动固体边界。
+- ✅ **软体-流体双向耦合（基础版）**：流体速度推动软体；软体写回
+  `solid_phi` 与交错面固体速度，作为运动障碍影响流体。
+- 🚧 刚体机关：占位，后续阶段实现。
 
 ## 环境
 
@@ -34,6 +38,7 @@ uv pip install -e .            # 或：uv pip install taichi numpy
 uv run python -m coupledsim.app                 # 默认 3D dam break 水箱
 uv run python -m coupledsim.app --scene jet
 uv run python -m coupledsim.app --scene obstacle
+uv run python -m coupledsim.app --scene softbody
 uv run python -m coupledsim.app --transfer flip --res 48
 ```
 
@@ -66,7 +71,7 @@ src/coupledsim/
   config.py            # 全局 / 流体配置（dataclass）
   fluid/flip_solver.py # 三维 FLIP/PIC/APIC 求解器（核心）
   coupling/boundary.py # 固体边界（解析形状 -> 有符号距离场）= 耦合接口
-  softbody/            # 软体（占位，后续阶段）
+  softbody/xpbd.py     # XPBD 软体 + 动态固体边界栅格化
   rigid/               # 刚体 / 机关（占位，后续阶段）
   scene/               # 场景 / 关卡组装
   render/              # 三维离屏渲染 + ti.GUI 软件查看器

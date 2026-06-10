@@ -7,6 +7,7 @@
 
 from ..config import FluidConfig, TransferMode
 from ..coupling import Box, Sphere
+from ..softbody import XPBDConfig, XPBDSoftBody
 from .scene import Emitter, FluidScene
 
 
@@ -69,11 +70,46 @@ def build_jet(res=48, transfer=TransferMode.APIC) -> FluidScene:
     )
 
 
+def build_softbody(res=40, transfer=TransferMode.APIC) -> FluidScene:
+    """软体果冻：水流推动可变形软体，软体反过来作为运动障碍挡水。"""
+    cfg = _base_cfg(res, transfer, viscosity=0.015, vel_damping=0.08,
+                    particles_per_cell=6, max_particles=1_200_000)
+    dx = cfg.dx
+    soft_cfg = XPBDConfig(
+        spacing=0.075,
+        radius=0.052,
+        density=0.42,
+        stiffness=0.68,
+        damping=3.2,
+        drag=18.0,
+        lift=0.8,
+        fluid_coupling=1.0,
+        solver_iters=10,
+        max_speed=3.5,
+    )
+    jelly = XPBDSoftBody.make_box(center=(0.55, 0.48, 0.5), dims=(3, 4, 3),
+                                  spacing=soft_cfg.spacing, cfg=soft_cfg)
+    shapes = [
+        Box(cx=0.5, cy=0.19, cz=0.5, hx=0.13, hy=0.035, hz=0.20),
+    ]
+    return FluidScene(
+        name="softbody",
+        cfg=cfg,
+        shapes=shapes,
+        soft_bodies=[jelly],
+        init_blocks=[(0.03, 0.03, 0.03, 0.42, 0.38, 0.97)],
+        emitters=[Emitter(region=(2 * dx, 0.36, 0.35, 5 * dx, 0.50, 0.65),
+                          velocity=(3.2, 0.25, 0.0), count=22)],
+        hint="软体耦合：水流推动果冻，果冻作为运动障碍改变水流。R 重置 / 拖动旋转",
+    )
+
+
 BUILDERS = {
     "dambreak": build_dambreak,
     "tank": build_tank,
     "obstacle": build_obstacle,
     "jet": build_jet,
+    "softbody": build_softbody,
 }
 
 

@@ -66,6 +66,14 @@ def render_frame(scene, width: int = 600, azim: float = 35.0, elev: float = 22.0
         pts_list.append(pos)
         col_list.append(col)
 
+    # XPBD soft bodies
+    for body in getattr(scene, "soft_bodies", []):
+        spos = body.positions_np()
+        if len(spos) == 0:
+            continue
+        pts_list.append(spos)
+        col_list.append(np.tile(np.array([1.0, 0.54, 0.20], np.float32), (len(spos), 1)))
+
     if not pts_list:
         return img
 
@@ -100,6 +108,8 @@ def render_frame(scene, width: int = 600, azim: float = 35.0, elev: float = 22.0
 
     # 画出水箱底面与背面边框，提供空间参考
     _draw_box_wire(img, center, scale, right, up, forward, lx, ly, lz, W, H)
+    for body in getattr(scene, "soft_bodies", []):
+        _draw_soft_body_wire(img, body, center, scale, right, up, W, H)
     return img
 
 
@@ -116,6 +126,24 @@ def _draw_box_wire(img, center, scale, right, up, forward, lx, ly, lz, W, H):
     for a, b in edges:
         n = int(max(abs(cx[a] - cx[b]), abs(cy[a] - cy[b])) + 1)
         for t in np.linspace(0, 1, n):
+            ix = int(np.clip(cx[a] * (1 - t) + cx[b] * t, 0, W - 1))
+            iy = int(np.clip(cy[a] * (1 - t) + cy[b] * t, 0, H - 1))
+            img[ix, iy] = line_col
+
+
+def _draw_soft_body_wire(img, body, center, scale, right, up, W, H):
+    pts = body.positions_np()
+    rel = pts - center
+    sx = rel @ right
+    sy = rel @ up
+    cx = (W * 0.5 + sx * scale)
+    cy = (H * 0.5 + sy * scale)
+    line_col = np.array([0.95, 0.34, 0.12], np.float32)
+    for a, b, rest in body.constraints:
+        if rest > body.cfg.spacing * 1.45:
+            continue
+        n = int(max(abs(cx[a] - cx[b]), abs(cy[a] - cy[b])) + 1)
+        for t in np.linspace(0, 1, max(n, 2)):
             ix = int(np.clip(cx[a] * (1 - t) + cx[b] * t, 0, W - 1))
             iy = int(np.clip(cy[a] * (1 - t) + cy[b] * t, 0, H - 1))
             img[ix, iy] = line_col
