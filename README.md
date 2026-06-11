@@ -1,21 +1,22 @@
 # coupledsim — 基于多物理耦合的软体水流解谜系统
 
-Lab4 / Final Project。目标是实现一个 **流体 + 软体 + 刚体** 的 **三维** 多物理耦合
-交互系统（详见 [`lab4_project_proposal.md`](lab4_project_proposal.md)）。
+Lab4 / Final Project。目标是实现一个 **三维流体 + XPBD 软体 + SDF 关卡障碍** 的
+多物理耦合交互系统（详见 [`lab4_project_proposal.md`](lab4_project_proposal.md)）。
 
-当前进度（第一阶段已完成 + 第二阶段进行中）：
+当前实现：
 
 - ✅ **统一工程框架**：配置、场景、渲染、耦合接口分层，各物理模块可独立测试。
 - ✅ **流体模块（核心，三维）**：**FLIP / PIC / APIC**，三维交错 MAC 网格，
   Jacobi 预条件共轭梯度（PCG）压力投影，速度外插，**粘性扩散**，
   喷口 / 吸入口 / 障碍边界。
 - ✅ **固体边界接口**：静态解析障碍（盒 / 球 / 水箱壁）栅格化为有符号距离场，
-  作为后续软体 / 刚体接入流体的统一通道。
+  作为软体和关卡障碍接入流体的统一通道。
 - ✅ **软体模块（XPBD）**：三维距离约束果冻体，支持重力、阻尼、边界碰撞、
   流体速度拖拽、栅格化为运动固体边界。
 - ✅ **软体-流体双向耦合（基础版）**：流体速度推动软体；软体写回
   `solid_phi` 与交错面固体速度，作为运动障碍影响流体。
-- 🚧 刚体机关：占位，后续阶段实现。
+- ✅ **关卡化 Demo**：`soft_plug`、`soft_slalom`、`soft_rescue` 三个小游戏关卡，
+  包含目标区、危险区、水量预算、喷口控制、胜负判定和 2D/3D 展示视图。
 
 ## 环境
 
@@ -39,6 +40,9 @@ uv run python -m coupledsim.app                 # 默认 3D dam break 水箱
 uv run python -m coupledsim.app --scene jet
 uv run python -m coupledsim.app --scene obstacle
 uv run python -m coupledsim.app --scene softbody
+uv run python -m coupledsim.app --scene soft_plug
+uv run python -m coupledsim.app --scene soft_slalom
+uv run python -m coupledsim.app --scene soft_rescue
 uv run python -m coupledsim.app --transfer flip --res 48
 ```
 
@@ -62,7 +66,8 @@ uv run python tests/test_fluid_headless.py
 uv run pytest
 ```
 
-测试覆盖：压力投影散度下降、PIC/FLIP/APIC 稳定性、障碍阻挡、粘性耗散、三维渲染路径。
+测试覆盖：压力投影散度下降、PIC/FLIP/APIC 稳定性、障碍阻挡、粘性耗散、
+XPBD 软体推进、动态耦合字段、关卡胜负逻辑和三维渲染路径。
 
 ## 代码结构
 
@@ -72,7 +77,6 @@ src/coupledsim/
   fluid/flip_solver.py # 三维 FLIP/PIC/APIC 求解器（核心）
   coupling/boundary.py # 固体边界（解析形状 -> 有符号距离场）= 耦合接口
   softbody/xpbd.py     # XPBD 软体 + 动态固体边界栅格化
-  rigid/               # 刚体 / 机关（占位，后续阶段）
   scene/               # 场景 / 关卡组装
   render/              # 三维离屏渲染 + ti.GUI 软件查看器
   tools/               # 对比出图（传输模式 / 参数）

@@ -5,6 +5,7 @@ __pycache__/
 .eggs/
 build/
 dist/
+.pytest_cache/
 
 # uv / venv
 .venv/
@@ -16,12 +17,15 @@ dist/
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Outputs (rendered frames, recordings, captures)
 outputs/
 *.mp4
 *.gif
+*.pptx
 captures/
+~$*.pptx
 
 # Editor
 .vscode/

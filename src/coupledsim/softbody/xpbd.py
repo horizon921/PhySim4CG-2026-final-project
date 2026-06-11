@@ -57,6 +57,7 @@ class XPBDSoftBody:
                 self.constraints.append((int(a), int(b), rest))
         self._lambdas = np.zeros(len(self.constraints), np.float32)
         self._force = np.zeros_like(self.x)
+        self.last_force = np.zeros(3, np.float32)
 
     @classmethod
     def make_box(cls, center: Vec3 = (0.5, 0.64, 0.5), dims: Tuple[int, int, int] = (4, 4, 4),
@@ -92,15 +93,26 @@ class XPBDSoftBody:
                             cons.add((min(a, b), max(a, b)))
         return cls(np.asarray(pts, np.float32), sorted(cons), cfg)
 
-    def reset(self, other: "XPBDSoftBody") -> None:
-        self.x[...] = other.x
-        self.prev_x[...] = other.prev_x
+    def clone(self) -> "XPBDSoftBody":
+        body = XPBDSoftBody(self.positions_np(), [(a, b) for a, b, _rest in self.constraints], self.cfg)
+        body.v[...] = self.v
+        return body
+
+    def reset(self, other: "XPBDSoftBody" | None = None) -> None:
+        if other is not None:
+            self.x[...] = other.x
+            self.prev_x[...] = other.prev_x
         self.v.fill(0.0)
         self._force.fill(0.0)
+        self.last_force.fill(0.0)
 
     @property
     def center(self) -> np.ndarray:
         return self.x.mean(axis=0)
+
+    @property
+    def position(self) -> np.ndarray:
+        return self.center.copy()
 
     def positions_np(self) -> np.ndarray:
         return self.x.copy()
@@ -108,8 +120,42 @@ class XPBDSoftBody:
     def velocities_np(self) -> np.ndarray:
         return self.v.copy()
 
+    def surface_points_np(self) -> np.ndarray:
+        return self.positions_np()
+
+    def surface_velocities_np(self) -> np.ndarray:
+        return self.velocities_np()
+
+    def sdf_np(self, points: np.ndarray) -> np.ndarray:
+        points = np.asarray(points, dtype=np.float32).reshape(-1, 3)
+        if len(self.x) == 0:
+            return np.full(len(points), 1e9, np.float32)
+        out = np.empty(len(points), np.float32)
+        chunk = 32768
+        for start in range(0, len(points), chunk):
+            q = points[start:start + chunk]
+            d = q[:, None, :] - self.x[None, :, :]
+            out[start:start + chunk] = np.sqrt(np.min(np.sum(d * d, axis=2), axis=1)) - self.cfg.radius
+        return out
+
     def add_force(self, force: np.ndarray) -> None:
-        self._force += force.astype(np.float32)
+        force = np.asarray(force, dtype=np.float32)
+        if force.shape == (3,):
+            self._force += force[None, :] / max(len(self.x), 1)
+            self.last_force = force.astype(np.float32)
+        else:
+            self._force += force.reshape(-1, 3)
+            self.last_force = force.reshape(-1, 3).sum(axis=0).astype(np.float32)
+
+    def apply_forces_np(self, forces: np.ndarray) -> None:
+        forces = np.asarray(forces, dtype=np.float32).reshape(-1, 3)
+        if len(forces) == 0:
+            self.last_force.fill(0.0)
+            return
+        if len(forces) != len(self.x):
+            self.add_force(forces.sum(axis=0))
+        else:
+            self.add_force(forces)
 
     def apply_fluid_drag(self, fluid_velocity: np.ndarray) -> None:
         """Apply sampled fluid velocity as drag/lift forces at lattice nodes."""
@@ -118,7 +164,7 @@ class XPBDSoftBody:
         if self.cfg.lift != 0.0:
             self._force[:, 1] += self.cfg.lift
 
-    def step(self, dt: float, bounds: Vec3, static_phi: np.ndarray | None = None,
+    def step(self, dt: float, bounds: Vec3 = (1.0, 1.0, 1.0), static_phi: np.ndarray | None = None,
              dx: float | None = None, gravity: Vec3 = (0.0, -9.8, 0.0)) -> None:
         self.prev_x[...] = self.x
         acc = np.array(gravity, np.float32)[None, :] + self._force * self.inv_mass[:, None]
