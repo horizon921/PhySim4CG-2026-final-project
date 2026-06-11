@@ -1,6 +1,6 @@
 """全局仿真配置（三维）。
 
-集中管理网格、时间步、流体参数等，方便各物理模块（流体 / 软体 / 刚体）
+集中管理网格、时间步、流体参数等，方便各物理模块（流体 / 软体 / 关卡）
 共享同一套场景坐标与时间步约定。坐标系约定见 README 与 docs/framework.md。
 """
 
@@ -85,4 +85,4 @@ class SceneConfig:
 
     name: str = "tank"
     fluid: FluidConfig = field(default_factory=FluidConfig)
-    # 软体 / 刚体配置后续阶段补充
+    # 软体 / 关卡配置由 scene/levels.py 按场景组装

@@ -112,19 +112,35 @@ class FlipSolver:
     # ===================================================================== #
     # 初始化 / 固体场
     # ===================================================================== #
-    def set_solid_phi(self, phi_np: np.ndarray):
+    def set_solid_fields(self, phi_np: np.ndarray, u_np: np.ndarray | None = None,
+                         v_np: np.ndarray | None = None, w_np: np.ndarray | None = None):
         assert phi_np.shape == (self.nx, self.ny, self.nz)
         self.solid_phi.from_numpy(phi_np.astype(np.float32))
-        self.u_solid.fill(0.0)
-        self.v_solid.fill(0.0)
-        self.w_solid.fill(0.0)
+        if u_np is None:
+            self.u_solid.fill(0.0)
+        else:
+            assert u_np.shape == (self.nx + 1, self.ny, self.nz)
+            self.u_solid.from_numpy(u_np.astype(np.float32))
+        if v_np is None:
+            self.v_solid.fill(0.0)
+        else:
+            assert v_np.shape == (self.nx, self.ny + 1, self.nz)
+            self.v_solid.from_numpy(v_np.astype(np.float32))
+        if w_np is None:
+            self.w_solid.fill(0.0)
+        else:
+            assert w_np.shape == (self.nx, self.ny, self.nz + 1)
+            self.w_solid.from_numpy(w_np.astype(np.float32))
+
+    def set_solid_phi(self, phi_np: np.ndarray):
+        self.set_solid_fields(phi_np)
 
     def add_particle_block(self, x0, y0, z0, x1, y1, z1, jitter=True):
         """在世界坐标长方体 [x0,x1]x[y0,y1]x[z0,z1] 内按 particles_per_cell 填充粒子。"""
         cfg = self.cfg
         dx = self.dx
         ppc = cfg.particles_per_cell
-        sub = max(1, int(round(ppc ** (1.0 / 3.0))))
+        sub = max(1, int(np.ceil(ppc ** (1.0 / 3.0))))
         i0, i1 = int(np.floor(x0 / dx)), int(np.ceil(x1 / dx))
         j0, j1 = int(np.floor(y0 / dx)), int(np.ceil(y1 / dx))
         k0, k1 = int(np.floor(z0 / dx)), int(np.ceil(z1 / dx))
@@ -152,6 +168,8 @@ class FlipSolver:
                     m = ((P[:, 0] >= x0) & (P[:, 0] <= x1) & (P[:, 1] >= y0) & (P[:, 1] <= y1)
                          & (P[:, 2] >= z0) & (P[:, 2] <= z1))
                     P = P[m]
+                    if len(P) > ppc:
+                        P = P[:ppc]
                     if len(P) == 0:
                         continue
                     ci = np.clip((P[:, 0] / dx).astype(int), 0, self.nx - 1)
