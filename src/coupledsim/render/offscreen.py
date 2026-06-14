@@ -169,8 +169,16 @@ def render_map_frame(scene, width: int = 600, max_fluid_particles: int | None = 
         return np.clip(px.astype(np.int32), 0, W - 1), np.clip(py.astype(np.int32), 0, H - 1)
 
     for region in getattr(scene, "hazard_regions", []):
-        _draw_map_region(img, region, x0, y0, x1, y1, lx, lz,
-                         np.array([0.70, 0.04, 0.04], np.float32), 0.22)
+        # High ceiling hazards cover almost the whole x-z footprint. Filling the
+        # projected map would make the level look unsafe everywhere, so draw
+        # them as a warning frame while keeping floor hazards filled.
+        if region[1] > scene.ly * 0.65:
+            _draw_map_region_outline(img, region, x0, y0, x1, y1, lx, lz,
+                                     np.array([0.86, 0.08, 0.06], np.float32),
+                                     thickness=3)
+        else:
+            _draw_map_region(img, region, x0, y0, x1, y1, lx, lz,
+                             np.array([0.70, 0.04, 0.04], np.float32), 0.22)
 
     target_regions = getattr(scene, "target_regions", [])
     current_target = getattr(scene, "current_target", 0)
@@ -260,6 +268,18 @@ def _draw_map_region(img, region, mx0, my0, mx1, my1, lx, lz, color, alpha):
     _draw_screen_line(img, (rx1, ry0), (rx1, ry1), color, thickness=1)
     _draw_screen_line(img, (rx1, ry1), (rx0, ry1), color, thickness=1)
     _draw_screen_line(img, (rx0, ry1), (rx0, ry0), color, thickness=1)
+
+
+def _draw_map_region_outline(img, region, mx0, my0, mx1, my1, lx, lz, color, thickness=1):
+    x0, _, z0, x1, _, z1 = region
+    rx0 = int(mx0 + x0 / max(lx, 1e-6) * (mx1 - mx0))
+    rx1 = int(mx0 + x1 / max(lx, 1e-6) * (mx1 - mx0))
+    ry0 = int(my0 + z0 / max(lz, 1e-6) * (my1 - my0))
+    ry1 = int(my0 + z1 / max(lz, 1e-6) * (my1 - my0))
+    _draw_screen_line(img, (rx0, ry0), (rx1, ry0), color, thickness=thickness)
+    _draw_screen_line(img, (rx1, ry0), (rx1, ry1), color, thickness=thickness)
+    _draw_screen_line(img, (rx1, ry1), (rx0, ry1), color, thickness=thickness)
+    _draw_screen_line(img, (rx0, ry1), (rx0, ry0), color, thickness=thickness)
 
 
 def _draw_disc(img, cx, cy, radius, color):
