@@ -99,7 +99,7 @@ def render_frame(scene, width: int = 600, azim: float = 35.0, elev: float = 22.0
         Col = Col * shade[:, None]
         px = np.clip((W * 0.5 + sx * scale).astype(int), 0, W - 1)
         py = np.clip((y_origin + sy * scale).astype(int), 0, H - 1)
-        rad = max(1, min(2, int(round(0.09 * scale * dx))))
+        rad = max(2, min(4, int(round(0.13 * scale * dx))))
         for ox in range(-rad, rad + 1):
             for oy in range(-rad, rad + 1):
                 if ox * ox + oy * oy > rad * rad + 1:
@@ -200,10 +200,8 @@ def render_map_frame(scene, width: int = 600, max_fluid_particles: int | None = 
         px, py = project(pos)
         h = np.clip(pos[:, 1] / max(scene.ly, 1e-6), 0.0, 1.0)
         colors = np.stack([0.06 + 0.08 * h, 0.28 + 0.24 * h, 0.72 + 0.16 * h], axis=1)
-        for ox, oy in ((0, 0), (1, 0), (0, 1)):
-            ix = np.clip(px + ox, 0, W - 1)
-            iy = np.clip(py + oy, 0, H - 1)
-            img[ix, iy] = colors
+        for x, yy, color in zip(px, py, colors):
+            _draw_disc(img, int(x), int(yy), 2, color)
 
     for body in getattr(scene, "soft_bodies", []):
         pts = _soft_body_points(body)
@@ -220,7 +218,7 @@ def render_map_frame(scene, width: int = 600, max_fluid_particles: int | None = 
     for emitter in getattr(scene, "emitters", []):
         _draw_map_emitter(img, emitter, x0, y0, x1, y1, lx, lz)
 
-    border = np.array([0.32, 0.39, 0.48], np.float32)
+    border = np.array([0.20, 0.25, 0.32], np.float32)
     _draw_screen_line(img, (x0, y0), (x1, y0), border, thickness=1)
     _draw_screen_line(img, (x1, y0), (x1, y1), border, thickness=1)
     _draw_screen_line(img, (x1, y1), (x0, y1), border, thickness=1)
@@ -242,7 +240,7 @@ def _map_bounds(W, H):
 
 
 def _draw_map_grid(img, x0, y0, x1, y1):
-    color = np.array([0.12, 0.16, 0.20], np.float32)
+    color = np.array([0.060, 0.085, 0.115], np.float32)
     for i in range(6):
         t = i / 5
         x = x0 + t * (x1 - x0)
@@ -300,11 +298,11 @@ def _soft_body_points(body) -> np.ndarray:
 def _draw_box_wire(img, center, scale, right, up, lx, ly, lz, W, H):
     _draw_region_wire(img, center, scale, right, up,
                       (0.0, 0.0, 0.0, lx, ly, lz), W, H,
-                      np.array([0.20, 0.24, 0.30], np.float32))
+                      np.array([0.12, 0.15, 0.20], np.float32))
 
 
 def _draw_floor_grid(img, center, scale, right, up, lx, lz, W, H):
-    color = np.array([0.13, 0.18, 0.24], np.float32)
+    color = np.array([0.065, 0.090, 0.120], np.float32)
     y = 0.002
     steps = 5
     for i in range(steps + 1):

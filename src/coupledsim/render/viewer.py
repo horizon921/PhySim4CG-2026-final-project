@@ -110,13 +110,21 @@ class Viewer3D:
             if idx != current:
                 continue
             x0, y0, z0, x1, y1, z1 = target.region
-            x, y = self._scene_label_pos(((x0 + x1) * 0.5, y1 + 0.045, (z0 + z1) * 0.5))
+            if self.view_mode == "map":
+                label_point = ((x0 + x1) * 0.5, y1 + 0.045, min(scene.lz, z1 + 0.06))
+            else:
+                label_point = ((x0 + x1) * 0.5, y1 + 0.045, (z0 + z1) * 0.5)
+            x, y = self._scene_label_pos(label_point)
             self._label(f"NEXT {target.name.upper()}", x, y, size=11, color=0xBFFFCA)
 
         if self.hud_detail == "full":
             for hazard in getattr(scene, "hazards", ()):
                 x0, y0, z0, x1, y1, z1 = hazard.region
-                x, y = self._scene_label_pos(((x0 + x1) * 0.5, y1 + 0.035, (z0 + z1) * 0.5))
+                if self.view_mode == "map":
+                    label_point = ((x0 + x1) * 0.5, y1 + 0.035, max(0.0, z0 - 0.05))
+                else:
+                    label_point = ((x0 + x1) * 0.5, y1 + 0.035, (z0 + z1) * 0.5)
+                x, y = self._scene_label_pos(label_point)
                 self._label(f"DANGER {hazard.name.upper()}", x, y, size=10, color=0xFF9188)
 
 
@@ -143,6 +151,7 @@ class Viewer3D:
         active = getattr(scene, "active_target", None)
         target_name = "DONE" if active is None else active.name.upper()
         progress = getattr(scene, "target_progress", 0.0) * 100.0
+        match = getattr(scene, "target_match", 0.0) * 100.0
         water = getattr(scene, "remaining_water", None)
         water_text = "INF" if water is None else str(water)
         jet_on = getattr(scene, "player_jet_enabled", None)
@@ -156,6 +165,7 @@ class Viewer3D:
         self._label(f"{scene.name.upper()}  {status}", 0.025, 0.955, size=15, color=0xFFFFFF)
         self._label(f"WATER {water_text}", stat_x, 0.866, size=stat_size, color=0xBFD9FF)
         self._label(f"GOAL {target_name} {progress:.0f}%", stat_x, 0.836, size=stat_size, color=0xC7FFD2)
+        self._label(f"MATCH {match:.0f}%", stat_x, 0.806, size=stat_size, color=0xE2FFD8)
         self._label(f"JET {jet_state}", 0.845, 0.852, size=stat_size,
                     color=0xBFD9FF if jet_on else 0xA7AFBA)
         if event and event != "ready":
@@ -169,6 +179,7 @@ class Viewer3D:
                       ("DANGER", 0.320), ("JET", 0.430)]
             for label, x in legend:
                 self._label(label, x, 0.026, size=10, color=0xDDE8F7)
+        self._label("OUTER FRAME = SIM TANK", 0.640, 0.026, size=9, color=0xAAB6C6)
 
     def _current_instruction(self, target_name: str) -> str:
         scene = self.scene

@@ -140,6 +140,8 @@ def test_soft_plug_game_rules_render_and_controls():
     scene.hazards = []
     scene.current_target = 0
     scene._sync_legacy_target()
+    assert scene.target_match > 0.0
+    assert "match=" in scene.status_line
     for _ in range(2):
         scene._update_game_status()
     assert scene.game_status == "playing"
