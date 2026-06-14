@@ -85,6 +85,7 @@ def _hud_lines(scene, nsub: int, fps: float, paused: bool, show_help: bool) -> l
             lines.append("First start compiles kernels and may take 1-2 minutes.")
         if show_help:
             lines.append(f"Target {target_name}: move the orange jelly into the green box.")
+            lines.append("Outer wire frame is the simulation tank boundary, not a puzzle obstacle.")
             lines.append("Controls: Space start/pause | Drag orbit | H hide HUD | Esc quit")
             lines.append("Jet: W/S/A/D aim | Q/E speed | O toggle | U pulse | R reset")
         return lines

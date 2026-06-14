@@ -40,6 +40,7 @@ class CoupledScene:
     player_jet_index: int = 0
     pulse_cooldown_frames: int = 45
     pulse_cost: int = 400
+    match_threshold: float = 0.25
     hint: str = ""
     objective: str = ""
     tutorial: tuple[str, ...] = ()
@@ -135,6 +136,13 @@ class CoupledScene:
         return min(1.0, self.target_frames / max(hold, 1))
 
     @property
+    def target_match(self) -> float:
+        active = self.active_target
+        if active is None:
+            return 1.0 if self.game_status == "won" else 0.0
+        return self._body_region_match(active.region)
+
+    @property
     def active_target(self) -> GameZone | None:
         if self.targets:
             if 0 <= self.current_target < len(self.targets):
@@ -166,7 +174,7 @@ class CoupledScene:
         target_name = "done" if active is None else active.name
         water = "inf" if self.remaining_water is None else str(self.remaining_water)
         return (f"status={self.game_status} score={self.score} target={target_name} "
-                f"{self.target_progress * 100:.0f}% water={water} "
+                f"{self.target_progress * 100:.0f}% match={self.target_match * 100:.0f}% water={water} "
                 f"pulse_cd={self.pulse_cooldown} event={self.last_event}")
 
     @property
@@ -279,7 +287,7 @@ class CoupledScene:
             self.hazard_frames = max(0, self.hazard_frames - 1)
 
         active = self.active_target
-        if active is not None and self._body_inside_region(active.region):
+        if active is not None and self._body_matches_region(active.region):
             self.target_frames += 1
         else:
             self.target_frames = max(0, self.target_frames - 2)
@@ -335,6 +343,31 @@ class CoupledScene:
             return False
         x0, y0, z0, x1, y1, z1 = region
         return bool(x0 <= pos[0] <= x1 and y0 <= pos[1] <= y1 and z0 <= pos[2] <= z1)
+
+    def _body_region_match(self, region: Region) -> float:
+        if not self.soft_bodies:
+            return 0.0
+        x0, y0, z0, x1, y1, z1 = region
+        samples = []
+        for body in self.soft_bodies:
+            if hasattr(body, "positions_np"):
+                pts = np.asarray(body.positions_np(), dtype=np.float32).reshape(-1, 3)
+            elif hasattr(body, "surface_points_np"):
+                pts = np.asarray(body.surface_points_np(), dtype=np.float32).reshape(-1, 3)
+            else:
+                continue
+            if len(pts):
+                samples.append(pts)
+        if not samples:
+            return 0.0
+        pts = np.concatenate(samples, axis=0)
+        inside = ((x0 <= pts[:, 0]) & (pts[:, 0] <= x1) &
+                  (y0 <= pts[:, 1]) & (pts[:, 1] <= y1) &
+                  (z0 <= pts[:, 2]) & (pts[:, 2] <= z1))
+        return float(inside.mean())
+
+    def _body_matches_region(self, region: Region) -> bool:
+        return self._body_inside_region(region) or self._body_region_match(region) >= self.match_threshold
 
     def _sync_legacy_target(self):
         active = self.active_target
